@@ -2,7 +2,7 @@
 
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
-import { getDatabase, ref, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
+import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 
 // Your web app's Firebase configuration
 // !! IMPORTANT: Replace these with your actual Firebase project credentials !!
@@ -20,6 +20,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const groupsRef = ref(database, 'groups'); // Reference to the 'groups' node in your database
+
+// --- Pinned Group Data ---
+const pinnedGroupData = {
+    name: "HACKER 99 🛑",
+    link: "https://t.me/viphack987_bot",
+    description: "Aapka iske andar ek lakh se jyada tools milenge jisse aap prank kar sakte hain apne doston ke sath unke mobile kuchh hack karke",
+    category: "Tools",
+    owner: "Admin",
+    views: 999999, // High view count for a pinned group
+    isPinned: true // Custom flag
+};
 
 // --- DOM Elements ---
 const homeView = document.getElementById('homeView');
@@ -44,12 +55,15 @@ const snackbar = document.getElementById('snackbar');
 const userIdDisplay = document.getElementById('userIdDisplay'); // For profile view
 const profileCoinsDisplay = document.getElementById('profileCoinsDisplay'); // For profile view
 const userCoinsDisplay = document.getElementById('userCoins'); // For header display
+const watchAdButton = document.getElementById('watchAdButton'); // New: Watch Ad button
 
 const sideMenu = document.querySelector('.side-menu');
 const sideMenuOverlay = document.querySelector('.side-menu-overlay');
 const closeMenuIcon = document.querySelector('.close-menu-icon');
 const menuItems = document.querySelectorAll('.menu-item'); // For side menu navigation
 
+const GROUP_POST_COST = 10;
+const AD_REWARD_COINS = 10;
 let currentFilter = 'All'; // Default filter for group listing
 let userCoins = 0; // User's coin balance
 
@@ -66,7 +80,7 @@ function initializeUserCoins() {
         // First time user
         userCoins = 20; // Give 20 coins for first visit
         localStorage.setItem('isFirstVisit', 'false'); // Mark as not first visit anymore
-        showSnackbar('Welcome! You received 20 coins.');
+        showSnackbar('Welcome! You received 20 coins for being a first-time user!');
     } else {
         userCoins = parseInt(storedCoins, 10);
     }
@@ -85,6 +99,21 @@ function addCoins(amount) {
 }
 
 /**
+ * Deducts coins from the user's balance and updates display and localStorage.
+ * @param {number} amount The number of coins to deduct.
+ * @returns {boolean} True if coins were deducted successfully, false otherwise (e.g., insufficient coins).
+ */
+function deductCoins(amount) {
+    if (userCoins >= amount) {
+        userCoins -= amount;
+        localStorage.setItem('userCoins', userCoins.toString());
+        updateCoinsDisplay();
+        return true;
+    }
+    return false;
+}
+
+/**
  * Updates the coin display in the header and profile page.
  */
 function updateCoinsDisplay() {
@@ -94,34 +123,16 @@ function updateCoinsDisplay() {
 
 /**
  * Handles the full-screen ad redirection and coin rewarding.
- * This function will be called when a user clicks 'Join Group'.
- * @param {string} originalLink The actual Telegram link to redirect to after the ad.
  */
-function fireRedirectAd(originalLink) {
-    // Store the original link in session storage so we can get it back after the ad redirect
-    sessionStorage.setItem('originalTelegramLink', originalLink);
-
-    // The 'invoke.js' script from profitableratecpm.com should handle the interstitial ad display
-    // or redirection when it's loaded in the HTML.
-    // To reward coins when the user returns, we typically rely on browser events
-    // like 'visibilitychange' or 'popstate'.
-    
+function fireRedirectAd() {
     // Set a flag that an ad redirect was initiated
     sessionStorage.setItem('adRedirectInitiated', 'true');
 
-    // Open the ad in a new window/tab. This is generally safer for not losing the user's current page state.
-    // The ad network's script (invoke.js) might also do this automatically.
+    // Open the ad in a new window/tab
     window.open("https://profitableratecpm.com/604bac33ecfc479f1286990c0f08a84c/invoke.js", "_blank");
-    
-    // After a short delay, also open the original Telegram link.
-    // This is a common pattern to ensure the user eventually gets to their destination,
-    // assuming the ad might be brief or shown in a separate context.
-    setTimeout(() => {
-        window.open(originalLink, '_blank');
-        showSnackbar('Opening Telegram group...');
-    }, 1000); // 1-second delay
-}
 
+    showSnackbar('Ad opened. Earn coins upon returning!');
+}
 
 // --- Helper Functions ---
 
@@ -137,19 +148,23 @@ function getRandomAvatarColor() {
 /**
  * Creates and returns a single group card HTML element.
  * @param {object} groupData The data for the group.
- * @param {string} key The Firebase key for this group.
+ * @param {string} key The Firebase key for this group (or a unique string for pinned).
  * @returns {HTMLElement} The created group card element.
  */
 function createGroupCard(groupData, key) {
-    const { name, link, category, owner = 'Admin', views = 0 } = groupData;
+    const { name, link, category, description, owner = 'Admin', views = 0, isPinned = false } = groupData;
     const initial = name ? name.charAt(0).toUpperCase() : '?';
 
     const card = document.createElement('div');
     card.classList.add('group-card');
+    if (isPinned) {
+        card.classList.add('pinned'); // Add pinned class for styling
+    }
     card.dataset.category = category; // Custom data attribute for filtering
     card.dataset.key = key; // Store Firebase key on the card element
 
-    const updatedViews = (views || 0) + 1; // Increment views locally for immediate display
+    // Increment views only for non-pinned groups from Firebase, or use initial views for pinned
+    const currentViews = isPinned ? views : (views || 0) + 1;
 
     card.innerHTML = `
         <div class="group-card-header">
@@ -157,8 +172,8 @@ function createGroupCard(groupData, key) {
                 <span>${initial}</span>
             </div>
             <div class="group-info">
-                <h3>${name}</h3>
-                <p class="description">Join our vibrant community!</p>
+                <h3>${name} ${isPinned ? '<i class="fas fa-thumbtack" style="color:#8A2BE2; margin-left: 5px;"></i>' : ''}</h3>
+                <p class="description">${description}</p>
             </div>
         </div>
         <div class="group-tags">
@@ -168,7 +183,7 @@ function createGroupCard(groupData, key) {
         <div class="group-meta">
             <span class="author">By: ${owner}</span>
             <span class="view-count">
-                <i class="fas fa-eye"></i> <span class="view-count-number">${updatedViews}</span> views
+                <i class="fas fa-eye"></i> <span class="view-count-number">${currentViews}</span> views
             </span>
             <a href="#" class="get-clicks-link" data-key="${key}" title="Get more info on clicks">Get Clicks</a>
         </div>
@@ -181,18 +196,27 @@ function createGroupCard(groupData, key) {
     if (getClicksLink) {
         getClicksLink.addEventListener('click', (e) => {
             e.preventDefault();
-            const currentCount = parseInt(card.querySelector('.view-count-number').textContent, 10);
-            showSnackbar(`"${name}" has approximately ${currentCount} views (including this one).`);
+            const count = parseInt(card.querySelector('.view-count-number').textContent, 10);
+            showSnackbar(`"${name}" has approximately ${count} views.`);
         });
     }
 
-    // Add event listener for "Join Group" button to trigger ad and then redirect
+    // Add event listener for "Join Group" button
     const joinButton = card.querySelector('.join-button');
     if (joinButton) {
-        joinButton.addEventListener('click', (e) => {
+        joinButton.addEventListener('click', async (e) => {
             e.preventDefault();
             const telegramLink = joinButton.dataset.link;
-            fireRedirectAd(telegramLink); // Trigger ad and then open Telegram link
+
+            // Increment views in Firebase for non-pinned groups
+            if (!isPinned) {
+                const groupToUpdateRef = ref(database, `groups/${key}`);
+                await update(groupToUpdateRef, { views: currentViews });
+            }
+
+            // Open Telegram link
+            window.open(telegramLink, '_blank');
+            showSnackbar('Opening Telegram group...');
         });
     }
 
@@ -200,21 +224,29 @@ function createGroupCard(groupData, key) {
 }
 
 /**
- * Renders the group cards to the DOM based on the current filter.
+ * Renders the group cards to the DOM based on the current filter, including the pinned group.
  * @param {object} groupsData The raw object of groups fetched from Firebase.
  */
 function renderGroups(groupsData) {
     groupListContainer.innerHTML = ''; // Clear existing cards
     let groupsArray = [];
 
+    // Add the pinned group first if it matches the current category or 'All'
+    if (currentFilter === 'All' || pinnedGroupData.category === currentFilter) {
+        const pinnedCard = createGroupCard(pinnedGroupData, 'pinned-hacker99'); // Use a unique key for pinned
+        groupListContainer.appendChild(pinnedCard);
+    }
+
     // Convert the Firebase object into an array, adding the Firebase key
     for (const key in groupsData) {
         if (groupsData.hasOwnProperty(key)) {
+            // Ensure we don't accidentally add a "pinned" group if it exists in Firebase
+            // (though it shouldn't be added to Firebase in this setup)
             groupsArray.push({ key: key, ...groupsData[key] });
         }
     }
 
-    // Sort by most recent (timestamp, descending)
+    // Sort by most recent (timestamp, descending) for regular groups
     groupsArray.sort((a, b) => b.timestamp - a.timestamp);
 
     // Filter groups based on the currently active category
@@ -224,8 +256,9 @@ function renderGroups(groupsData) {
 
     loadingSpinner.style.display = 'none'; // Hide spinner once data is processed
 
-    if (filteredGroups.length === 0) {
-        groupListContainer.innerHTML = `
+    if (filteredGroups.length === 0 && (currentFilter !== 'All' || pinnedGroupData.category !== currentFilter)) {
+        // Only show "no groups" message if no filtered groups and pinned group isn't displayed
+        groupListContainer.innerHTML += `
             <p style="text-align: center; color: #777; margin-top: 50px; grid-column: 1 / -1;">
                 No groups found in the '${currentFilter}' category.
             </p>
@@ -275,18 +308,17 @@ function showView(viewToShow) {
         header.style.display = 'flex';
         categoryTabsNav.style.display = 'flex';
         adBannerContainer.style.display = 'flex'; // Show ad banner
-        // Update user coins on home view (if coming from profile, etc.)
-        updateCoinsDisplay();
+        updateCoinsDisplay(); // Update user coins on home view
     } else {
         header.style.display = 'none'; // Hide main header on other views
         categoryTabsNav.style.display = 'none';
         adBannerContainer.style.display = 'none'; // Hide ad banner
     }
 
-    // For profile view, update coins display
+    // For profile view, update coins display and user ID
     if (viewToShow === profileView) {
         profileCoinsDisplay.textContent = userCoins;
-        userIdDisplay.textContent = localStorage.getItem('uniqueUserId') || 'N/A'; // Display persisted user ID
+        userIdDisplay.textContent = localStorage.getItem('uniqueUserId') || 'N/A';
     }
 
     // Close side menu if open
@@ -344,6 +376,11 @@ function closeSideMenu() {
 
 // Navigation from Header Icons
 addGroupIcon.addEventListener('click', () => {
+    // Check for coins before opening the form
+    if (userCoins < GROUP_POST_COST) {
+        showSnackbar(`You need ${GROUP_POST_COST} coins to post a group. You have ${userCoins}.`);
+        return; // Prevent opening the form
+    }
     showView(addGroupView);
     updateFormStep(0); // Reset form to first step
 });
@@ -389,7 +426,7 @@ nextStepButton.addEventListener('click', () => {
     const telegramLinkInput = document.getElementById('telegramLink');
 
     if (!groupNameInput.value.trim() || !telegramLinkInput.value.trim()) {
-        showSnackbar('Please fill in both name and link fields.');
+        showSnackbar('Please fill in both group name and Telegram link.');
         return;
     }
     if (!telegramLinkInput.value.trim().startsWith('https://t.me/')) {
@@ -409,12 +446,24 @@ prevStepButton.addEventListener('click', () => {
 addGroupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    if (userCoins < GROUP_POST_COST) {
+        showSnackbar(`You need ${GROUP_POST_COST} coins to post a group. You have ${userCoins}.`);
+        return;
+    }
+
     const groupName = document.getElementById('groupName').value.trim();
     const telegramLink = document.getElementById('telegramLink').value.trim();
     const groupCategory = document.getElementById('groupCategory').value;
+    const groupDescription = "Join our vibrant community!"; // Default description for now
 
     if (!groupCategory) {
         showSnackbar('Please select a category.');
+        return;
+    }
+
+    // Deduct coins before attempting to push to Firebase
+    if (!deductCoins(GROUP_POST_COST)) {
+        showSnackbar('Insufficient coins to post this group.'); // Should not happen due to earlier check, but good for robustness
         return;
     }
 
@@ -422,6 +471,7 @@ addGroupForm.addEventListener('submit', async (e) => {
         name: groupName,
         link: telegramLink,
         category: groupCategory,
+        description: groupDescription,
         timestamp: Date.now(),
         owner: getOrCreateUserId(), // Use the persistent user ID
         views: 0
@@ -436,7 +486,14 @@ addGroupForm.addEventListener('submit', async (e) => {
     } catch (error) {
         console.error("Error adding group: ", error);
         showSnackbar('Error submitting group. Please try again.');
+        // If submission fails, consider refunding coins (more complex error handling needed for robust solution)
+        addCoins(GROUP_POST_COST); // Simple refund on failure
     }
+});
+
+// Watch Ad Button click
+watchAdButton.addEventListener('click', () => {
+    fireRedirectAd();
 });
 
 // Category Tab Filtering Logic
@@ -463,9 +520,18 @@ onValue(groupsRef, (snapshot) => {
     if (data) {
         renderGroups(data); // Render all groups if data exists
     } else {
-        groupListContainer.innerHTML = `
+        // If no data, still render the pinned group
+        if (currentFilter === 'All' || pinnedGroupData.category === currentFilter) {
+            groupListContainer.innerHTML = ''; // Clear if only spinner was there
+            const pinnedCard = createGroupCard(pinnedGroupData, 'pinned-hacker99');
+            groupListContainer.appendChild(pinnedCard);
+        } else {
+             groupListContainer.innerHTML = ''; // Clear
+        }
+
+        groupListContainer.innerHTML += `
             <p style="text-align: center; color: #777; margin-top: 50px; grid-column: 1 / -1;">
-                No groups added yet. Be the first!
+                No user-submitted groups added yet. Be the first!
             </p>
         `;
         loadingSpinner.style.display = 'none';
@@ -504,7 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('popstate', (event) => {
         // Check if an ad redirect was initiated and the user has returned
         if (sessionStorage.getItem('adRedirectInitiated') === 'true') {
-            addCoins(10);
+            addCoins(AD_REWARD_COINS);
             sessionStorage.removeItem('adRedirectInitiated'); // Clear flag after rewarding
             // You might want to add a cooldown or a more sophisticated check here
             // to prevent accidental multiple awards.
@@ -517,7 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.visibilityState === 'visible') {
             // Check if an ad redirect was initiated and the user has returned
             if (sessionStorage.getItem('adRedirectInitiated') === 'true') {
-                addCoins(10);
+                addCoins(AD_REWARD_COINS);
                 sessionStorage.removeItem('adRedirectInitiated'); // Clear flag after rewarding
                 // Important: This `visibilitychange` can trigger for other reasons
                 // (e.g., switching tabs). For a production app, you might need
