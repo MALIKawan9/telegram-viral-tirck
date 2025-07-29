@@ -1,1 +1,116 @@
+Muneeb, [30.07.2025 02:04]
+projectId: "zeoo-chats",
+            storageBucket: "zeoo-chats.appspot.com",
+            messagingSenderId: "93460025048",
+            appId: "1:93460025048:web:8e59ff9dda9de20e4a11ad"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
+        document.addEventListener('DOMContentLoaded', function() {
+            const userIdSpan = document.getElementById('user-id');
+            const coinCountSpan = document.getElementById('coin-count');
+            const watchAdBtn = document.getElementById('watch-ad-btn');
+
+            let userId = localStorage.getItem('zeooChatsUserId');
+            if (!userId) {
+                userId = 'user_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('zeooChatsUserId', userId);
+            }
+            userIdSpan.textContent = userId;
+            
+            const userRef = database.ref('users/' + userId);
+
+            userRef.on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    coinCountSpan.textContent = snapshot.val().coins || 0;
+                } else {
+                    userRef.set({ coins: 20, userId: userId });
+                }
+            });
+
+            watchAdBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const originalText = watchAdBtn.innerHTML;
+                watchAdBtn.innerHTML = <i class="fas fa-spinner fa-spin fa-fw"></i> Loading Ad...;
+                watchAdBtn.style.pointerEvents = 'none';
+
+                setTimeout(() => {
+                    const coinsToAdd = 5;
+                    userRef.child('coins').set(firebase.database.ServerValue.increment(coinsToAdd));
+                    alert(Ad finished! You earned ${coinsToAdd} coins.);
+                    watchAdBtn.innerHTML = originalText;
+                    watchAdBtn.style.pointerEvents = 'auto';
+                }, 3000);
+            });
+        });
+    </script>
+</body>
+</html>
+
+Muneeb, [30.07.2025 02:04]
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--primary-gradient:linear-gradient(90deg, #8E2DE2, #4A00E0);--white:#ffffff;--light-gray:#f5f7fa;--border-radius-md:12px;}
+        body{font-family:'Poppins',sans-serif;margin:0;background-color:var(--light-gray);}
+        .header{display:flex;align-items:center;padding:1rem 1.25rem;background:var(--primary-gradient);color:var(--white);}
+        .header a{color:white;text-decoration:none;font-size:1.4rem;}
+        .header h1{font-size:1.5rem;margin:0;margin-left:1.5rem;}
+        .profile-container{padding:2rem;max-width:600px;margin:auto;}
+        .profile-card{background:var(--white);border-radius:var(--border-radius-md);text-align:center;padding:2.5rem 1.5rem;box-shadow:0 8px 25px rgba(0,0,0,0.1);}
+        .profile-picture{position:relative;width:120px;height:120px;margin:0 auto 1.5rem auto;}
+        .profile-picture img{width:100%;height:100%;border-radius:50%;border:4px solid #4A00E0;}
+        .profile-info h2{margin:0;font-size:1.5rem;font-weight:600;}
+        .profile-info p{color:#777;font-size:0.9rem;word-wrap:break-word;}
+        .uid-label{font-weight:bold;color:#333;}
+        .coin-balance{font-size:1.2rem;font-weight:bold;color:#4A00E0;margin-top:1rem;background:#f2eaff;padding:0.5rem 1rem;border-radius:8px;display:inline-block;}
+        .button-list{list-style:none;padding:0;margin-top:2rem;}
+        .button-list li a{display:flex;align-items:center;padding:1rem;background:var(--white);margin-bottom:0.75rem;border-radius:8px;text-decoration:none;color:#333;font-weight:500;transition:background .3s ease;box-shadow:0 2px 5px rgba(0,0,0,0.05);}
+        .button-list li a:hover{background:#e9ecef;}
+        .button-list li .fa-fw{margin-right:1rem;color:#8E2DE2;width:20px;}
+        .button-list li small{margin-left:auto;color:#999;font-style:italic;}
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <a href="index.html"><i class="fas fa-arrow-left"></i></a>
+        <h1>My Profile</h1>
+    </header>
+
+    <div class="profile-container">
+        <div class="profile-card">
+            <div class="profile-picture">
+                <img src="https://i.pravatar.cc/150" alt="Profile Picture">
+            </div>
+            <div class="profile-info">
+                <h2>Guest User</h2>
+                <p><span class="uid-label">User ID:</span> <span id="user-id">Loading...</span></p>
+                <div class="coin-balance">
+                    <i class="fas fa-coins"></i> Coins: <span id="coin-count">0</span>
+                </div>
+            </div>
+        </div>
+
+        <ul class="button-list">
+            <li><a href="#" id="watch-ad-btn"><i class="fas fa-video fa-fw"></i> Watch Ad for 5 Coins</a></li>
+            <li><a href="#"><i class="fas fa-cog fa-fw"></i> Settings <small>Coming Soon</small></a></li>
+            <li><a href="#"><i class="fas fa-file-alt fa-fw"></i> My Content</a></li>
+            <li><a href="#"><i class="fas fa-shield-alt fa-fw"></i> Privacy Policy</a></li>
+        </ul>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUI2ht_2gv0vCa-AYhN6KtAQ6UvjHZLUA",
+            authDomain: "zeoo-chats.firebaseapp.com",
+            databaseURL: "https://zeoo-chats-default-rtdb.firebaseio.com",
