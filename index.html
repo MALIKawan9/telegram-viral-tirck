@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Group Listing</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <i class="fas fa-bars menu-icon"></i>
+        </div>
+        <div class="header-center">
+            <h1>All Groups</h1>
+        </div>
+        <div class="header-right">
+            <span class="coins-display"><i class="fas fa-coins"></i> <span id="userCoins">0</span></span>
+            <i class="fas fa-search"></i>
+            <i class="fas fa-plus add-group-icon"></i>
+            <i class="fas fa-user-circle profile-icon"></i>
+        </div>
+    </header>
+
+    <nav class="category-tabs">
+        <div class="category-tab active" data-category="All">All</div>
+        <div class="category-tab" data-category="Entertainment">Entertainment</div>
+        <div class="category-tab" data-category="Forex-Trading">Forex-Trading</div>
+        <div class="category-tab" data-category="Crypto">Crypto</div>
+        <div class="category-tab" data-category="Tools">Tools</div>
+        <div class="category-tab" data-category="Videos">Videos</div>
+        </nav>
+
+    <div class="ad-banner-container">
+        <script type="text/javascript">
+         atOptions = {
+          'key' : '198d51915d8cc397f7611f10e2d1e563',
+          'format' : 'iframe',
+          'height' : 90,
+          'width' : 728,
+          'params' : {}
+         };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/198d51915d8cc397f7611f10e2d1e563/invoke.js"></script>
+    </div>
+
+    <main class="group-list-container active-view" id="homeView">
+        <div class="loading-spinner"></div>
+    </main>
+
+    <section class="full-page-view" id="addGroupView">
+        <div class="view-header">
+            <i class="fas fa-arrow-left back-button"></i>
+            <h2>Submit Your Group/Channel</h2>
+        </div>
+        <form id="addGroupForm" class="full-page-form">
+            <div class="form-step active-step" id="step1">
+                <p>Tell us about your group:</p>
+                <div class="form-group">
+                    <label for="groupName">Group/Channel Name</label>
+                    <input type="text" id="groupName" placeholder="e.g., Awesome Chat Community" required>
+                </div>
+                <div class="form-group">
+                    <label for="telegramLink">Telegram Invite Link</label>
+                    <input type="url" id="telegramLink" pattern="https://t\.me/.*" placeholder="https://t.me/yourgroup" required>
+                    <small>Must start with https://t.me/</small>
+                </div>
+                <button type="button" class="next-step-button">Next</button>
+            </div>
+
+            <div class="form-step" id="step2">
+                <p>Select a category for your group:</p>
+                <div class="form-group">
+                    <label for="groupCategory">Category</label>
+                    <select id="groupCategory" required>
+                        <option value="">Select a category</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Forex-Trading">Forex-Trading</option>
+                        <option value="Crypto">Crypto</option>
+                        <option value="Tools">Tools</option>
+                        <option value="Videos">Videos</option>
+                        </select>
+                </div>
+                <button type="submit" class="submit-button">Submit Group</button>
+                <button type="button" class="prev-step-button">Back</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="full-page-view" id="profileView">
+        <div class="view-header">
+            <i class="fas fa-arrow-left back-button"></i>
+            <h2>User Profile / About</h2>
+        </div>
+        <div class="profile-content">
+            <p><strong>Your User ID:</strong> <span id="userIdDisplay">Loading...</span></p>
+            <p><strong>Your Coins:</strong> <span id="profileCoinsDisplay">0</span></p>
+            <h3>Our Policies</h3>
+            <p>Welcome to our Telegram Group Listing platform! We aim to provide a safe and useful directory for Telegram users.</p>
+            <h4>Content Guidelines:</h4>
+            <ul>
+                <li>All submitted groups must adhere to legal standards.</li>
+                <li>No hateful, discriminatory, or illegal content is permitted.</li>
+                <li>Spamming and self-promotion outside of group submission is forbidden.</li>
+            </ul>
+            <h4>Admin / Moderation:</h4>
+            <p>Our team moderates submissions to ensure quality and compliance. We reserve the right to remove any group that violates our guidelines without prior notice.</p>
+            <p>For support or inquiries, please contact us at support@example.com.</p>
+        </div>
+    </section>
+
+    <nav class="side-menu">
+        <div class="side-menu-header">
+            <i class="fas fa-times close-menu-icon"></i>
+            <h3>Navigation</h3>
+        </div>
+        <ul>
+            <li><a href="#" class="menu-item" data-view="homeView"><i class="fas fa-home"></i> Home</a></li>
+            <li><a href="#" class="menu-item" data-view="profileView"><i class="fas fa-user"></i> My Profile</a></li>
+            <li><a href="#" class="menu-item disabled"><i class="fas fa-cog"></i> Settings (Coming Soon)</a></li>
+            <li><a href="#" class="menu-item disabled"><i class="fas fa-shield-alt"></i> Privacy Policy</a></li>
+            <li><a href="#" class="menu-item disabled"><i class="fas fa-envelope"></i> Contact Admin</a></li>
+            <li><a href="#" class="menu-item disabled"><i class="fas fa-question-circle"></i> Help & FAQ</a></li>
+        </ul>
+    </nav>
+    <div class="side-menu-overlay"></div>
+
+    <div id="snackbar" class="snackbar"></div>
+
+    <script type="text/javascript" src="https://profitableratecpm.com/604bac33ecfc479f1286990c0f08a84c/invoke.js"></script>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
