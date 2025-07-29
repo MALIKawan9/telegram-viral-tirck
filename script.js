@@ -1,5 +1,8 @@
 // script.js
 
+// Check the current page to apply specific logic
+const currentPage = window.location.pathname.split('/').pop(); // "index.html" or "profile.html"
+
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
 import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
@@ -32,40 +35,76 @@ const pinnedGroupData = {
     isPinned: true // Custom flag
 };
 
-// --- DOM Elements ---
-const homeView = document.getElementById('homeView');
-const addGroupView = document.getElementById('addGroupView');
-const profileView = document.getElementById('profileView');
-
-const groupListContainer = document.querySelector('.group-list-container');
-const addGroupIcon = document.querySelector('.add-group-icon');
-const profileIcon = document.querySelector('.profile-icon'); // Profile icon
-const menuIcon = document.querySelector('.menu-icon'); // Hamburger menu icon
-
-const addGroupForm = document.getElementById('addGroupForm');
-const nextStepButton = addGroupForm.querySelector('.next-step-button');
-const prevStepButton = addGroupForm.querySelector('.prev-step-button');
-const formSteps = addGroupForm.querySelectorAll('.form-step');
-let currentStep = 0; // For multi-step form
-
-const categoryTabs = document.querySelectorAll('.category-tab');
-const loadingSpinner = document.querySelector('.loading-spinner');
-const snackbar = document.getElementById('snackbar');
-
-const userIdDisplay = document.getElementById('userIdDisplay'); // For profile view
-const profileCoinsDisplay = document.getElementById('profileCoinsDisplay'); // For profile view
-const userCoinsDisplay = document.getElementById('userCoins'); // For header display
-const watchAdButton = document.getElementById('watchAdButton'); // New: Watch Ad button
-
-const sideMenu = document.querySelector('.side-menu');
-const sideMenuOverlay = document.querySelector('.side-menu-overlay');
-const closeMenuIcon = document.querySelector('.close-menu-icon');
-const menuItems = document.querySelectorAll('.menu-item'); // For side menu navigation
-
+// --- Global Constants ---
 const GROUP_POST_COST = 10;
 const AD_REWARD_COINS = 10;
-let currentFilter = 'All'; // Default filter for group listing
+const WATCH_AD_URL = "https://www.profitableratecpm.com/d63pq29r3m?key=49c6bb7028627aa53d76695323c8757d";
+
 let userCoins = 0; // User's coin balance
+let currentFilter = 'All'; // Default filter for group listing
+let currentSortOrder = 'latest'; // Default sort order
+
+// --- DOM Elements (conditionally selected based on page) ---
+let homeView, addGroupView; // Only for index.html
+let groupListContainer, addGroupIcon, profileIconLink, categoryTabs, loadingSpinner; // Mostly for index.html
+let addGroupForm, nextStepButton, prevStepButton, formSteps; // Only for index.html (Add Group Popup)
+let userCoinsDisplay; // In header (index.html)
+let snackbar; // Both pages
+let userIdDisplay, profileCoinsDisplay, watchAdButton, profileDpPreview, dpUploadInput; // Only for profile.html
+let sortOrderSelect; // Only for index.html
+let sideMenu, sideMenuOverlay, closeMenuIcon, menuItems; // Only for index.html
+
+// Select elements only if they exist on the current page
+document.addEventListener('DOMContentLoaded', () => {
+    snackbar = document.getElementById('snackbar');
+
+    if (currentPage === 'index.html' || currentPage === '') { // '' for root path
+        homeView = document.getElementById('homeView');
+        addGroupView = document.getElementById('addGroupView');
+
+        groupListContainer = document.querySelector('.group-list-container');
+        addGroupIcon = document.querySelector('.add-group-icon');
+        profileIconLink = document.querySelector('.profile-link'); // Changed to link for profile.html
+        menuIcon = document.querySelector('.menu-icon');
+
+        addGroupForm = document.getElementById('addGroupForm');
+        nextStepButton = addGroupForm.querySelector('.next-step-button');
+        prevStepButton = addGroupForm.querySelector('.prev-step-button');
+        formSteps = addGroupForm.querySelectorAll('.form-step');
+
+        categoryTabs = document.querySelectorAll('.category-tab');
+        loadingSpinner = document.querySelector('.loading-spinner');
+
+        userCoinsDisplay = document.getElementById('userCoins'); // For header display
+        sortOrderSelect = document.getElementById('sortOrder'); // For sorting
+
+        sideMenu = document.querySelector('.side-menu');
+        sideMenuOverlay = document.querySelector('.side-menu-overlay');
+        closeMenuIcon = document.querySelector('.close-menu-icon');
+        menuItems = document.querySelectorAll('.menu-item');
+
+        initializeIndexPageListeners();
+        initializeUserCoins(); // Initialize coins for the session
+        getOrCreateUserId(); // Ensure user ID is set/retrieved
+        showMainView(homeView); // Show home view by default on index.html
+
+    } else if (currentPage === 'profile.html') {
+        userIdDisplay = document.getElementById('userIdDisplay');
+        profileCoinsDisplay = document.getElementById('profileCoinsDisplay');
+        watchAdButton = document.getElementById('watchAdButton');
+        profileDpPreview = document.getElementById('profileDpPreview');
+        dpUploadInput = document.getElementById('dpUploadInput');
+
+        initializeProfilePageListeners();
+        initializeUserCoins(); // Initialize coins for the session
+        updateProfilePageUI();
+    }
+
+    // Common event listeners for returning from ads
+    window.addEventListener('popstate', handleAdReturn);
+    document.addEventListener("visibilitychange", handleAdReturn);
+});
+
 
 // --- Coin System Functions ---
 
@@ -77,7 +116,6 @@ function initializeUserCoins() {
     const isFirstVisit = localStorage.getItem('isFirstVisit');
 
     if (storedCoins === null || isFirstVisit === null) {
-        // First time user
         userCoins = 20; // Give 20 coins for first visit
         localStorage.setItem('isFirstVisit', 'false'); // Mark as not first visit anymore
         showSnackbar('Welcome! You received 20 coins for being a first-time user!');
@@ -114,24 +152,39 @@ function deductCoins(amount) {
 }
 
 /**
- * Updates the coin display in the header and profile page.
+ * Updates the coin display in the header (if present) and profile page (if present).
  */
 function updateCoinsDisplay() {
-    userCoinsDisplay.textContent = userCoins;
-    profileCoinsDisplay.textContent = userCoins;
+    if (userCoinsDisplay) { // Only update if element exists (on index.html)
+        userCoinsDisplay.textContent = userCoins;
+    }
+    if (profileCoinsDisplay) { // Only update if element exists (on profile.html)
+        profileCoinsDisplay.textContent = userCoins;
+    }
 }
 
 /**
  * Handles the full-screen ad redirection and coin rewarding.
  */
 function fireRedirectAd() {
-    // Set a flag that an ad redirect was initiated
     sessionStorage.setItem('adRedirectInitiated', 'true');
+    window.open(WATCH_AD_URL, "_blank");
+    showSnackbar('Ad opened in a new tab. Earn coins upon returning!');
+}
 
-    // Open the ad in a new window/tab
-    window.open("https://profitableratecpm.com/604bac33ecfc479f1286990c0f08a84c/invoke.js", "_blank");
-
-    showSnackbar('Ad opened. Earn coins upon returning!');
+/**
+ * Generic handler for when the user might return from an ad.
+ * This function will be triggered by popstate or visibilitychange events.
+ */
+function handleAdReturn() {
+    if (sessionStorage.getItem('adRedirectInitiated') === 'true') {
+        addCoins(AD_REWARD_COINS);
+        sessionStorage.removeItem('adRedirectInitiated'); // Clear flag after rewarding
+        // For robustness in a real app, you'd add:
+        // 1. A timestamp in localStorage when the ad was shown.
+        // 2. A cooldown period (e.g., 30 seconds, 1 minute) before allowing another reward.
+        // This prevents users from quickly switching tabs to get multiple rewards.
+    }
 }
 
 // --- Helper Functions ---
@@ -163,8 +216,8 @@ function createGroupCard(groupData, key) {
     card.dataset.category = category; // Custom data attribute for filtering
     card.dataset.key = key; // Store Firebase key on the card element
 
-    // Increment views only for non-pinned groups from Firebase, or use initial views for pinned
-    const currentViews = isPinned ? views : (views || 0) + 1;
+    // Increment views only for non-pinned groups
+    const currentViews = views + (isPinned ? 0 : 1); // Only increment if not pinned and it's a "view"
 
     card.innerHTML = `
         <div class="group-card-header">
@@ -224,12 +277,35 @@ function createGroupCard(groupData, key) {
 }
 
 /**
- * Renders the group cards to the DOM based on the current filter, including the pinned group.
+ * Renders the group cards to the DOM based on the current filter and sort order, including the pinned group.
  * @param {object} groupsData The raw object of groups fetched from Firebase.
  */
 function renderGroups(groupsData) {
+    if (!groupListContainer) return; // Ensure we are on index.html
+
     groupListContainer.innerHTML = ''; // Clear existing cards
     let groupsArray = [];
+
+    // Convert the Firebase object into an array, adding the Firebase key
+    for (const key in groupsData) {
+        if (groupsData.hasOwnProperty(key)) {
+            groupsArray.push({ key: key, ...groupsData[key] });
+        }
+    }
+
+    // Filter groups based on the currently active category
+    let filteredGroups = groupsArray.filter(group =>
+        currentFilter === 'All' || group.category === currentFilter
+    );
+
+    // Sort filtered groups
+    if (currentSortOrder === 'latest') {
+        filteredGroups.sort((a, b) => b.timestamp - a.timestamp);
+    } else if (currentSortOrder === 'mostViewed') {
+        filteredGroups.sort((a, b) => b.views - a.views);
+    }
+
+    loadingSpinner.style.display = 'none'; // Hide spinner once data is processed
 
     // Add the pinned group first if it matches the current category or 'All'
     if (currentFilter === 'All' || pinnedGroupData.category === currentFilter) {
@@ -237,27 +313,8 @@ function renderGroups(groupsData) {
         groupListContainer.appendChild(pinnedCard);
     }
 
-    // Convert the Firebase object into an array, adding the Firebase key
-    for (const key in groupsData) {
-        if (groupsData.hasOwnProperty(key)) {
-            // Ensure we don't accidentally add a "pinned" group if it exists in Firebase
-            // (though it shouldn't be added to Firebase in this setup)
-            groupsArray.push({ key: key, ...groupsData[key] });
-        }
-    }
-
-    // Sort by most recent (timestamp, descending) for regular groups
-    groupsArray.sort((a, b) => b.timestamp - a.timestamp);
-
-    // Filter groups based on the currently active category
-    const filteredGroups = groupsArray.filter(group =>
-        currentFilter === 'All' || group.category === currentFilter
-    );
-
-    loadingSpinner.style.display = 'none'; // Hide spinner once data is processed
-
-    if (filteredGroups.length === 0 && (currentFilter !== 'All' || pinnedGroupData.category !== currentFilter)) {
-        // Only show "no groups" message if no filtered groups and pinned group isn't displayed
+    if (filteredGroups.length === 0 && !(currentFilter === 'All' || pinnedGroupData.category === currentFilter)) {
+        // Only show "no groups" message if no filtered groups AND pinned group isn't displayed
         groupListContainer.innerHTML += `
             <p style="text-align: center; color: #777; margin-top: 50px; grid-column: 1 / -1;">
                 No groups found in the '${currentFilter}' category.
@@ -279,6 +336,8 @@ function renderGroups(groupsData) {
  * @param {string} message The message to display.
  */
 function showSnackbar(message) {
+    if (!snackbar) return; // Don't show if snackbar element isn't present
+
     snackbar.textContent = message;
     snackbar.classList.add('show');
     setTimeout(() => {
@@ -287,14 +346,15 @@ function showSnackbar(message) {
 }
 
 /**
- * Switches between different full-page views (home, add group, profile).
+ * Switches between different full-page views (add group) within index.html.
  * @param {HTMLElement} viewToShow The view element to make active.
  */
-function showView(viewToShow) {
+function showMainView(viewToShow) {
+    if (!homeView || !addGroupView) return; // Ensure we are on index.html
+
     // Hide all main content views first
     homeView.classList.remove('active-view');
     addGroupView.classList.remove('active-view');
-    profileView.classList.remove('active-view');
 
     // Show the requested view
     viewToShow.classList.add('active-view');
@@ -302,23 +362,20 @@ function showView(viewToShow) {
     // Adjust header visibility based on view
     const header = document.querySelector('.header');
     const categoryTabsNav = document.querySelector('.category-tabs');
-    const adBannerContainer = document.querySelector('.ad-banner-container'); // Use container
+    const adBannerContainer = document.querySelector('.ad-banner-container');
+    const sortOptionsContainer = document.querySelector('.sort-options');
 
     if (viewToShow === homeView) {
         header.style.display = 'flex';
         categoryTabsNav.style.display = 'flex';
-        adBannerContainer.style.display = 'flex'; // Show ad banner
-        updateCoinsDisplay(); // Update user coins on home view
-    } else {
+        adBannerContainer.style.display = 'flex';
+        sortOptionsContainer.style.display = 'flex';
+        updateCoinsDisplay(); // Update user coins
+    } else { // For addGroupView
         header.style.display = 'none'; // Hide main header on other views
         categoryTabsNav.style.display = 'none';
-        adBannerContainer.style.display = 'none'; // Hide ad banner
-    }
-
-    // For profile view, update coins display and user ID
-    if (viewToShow === profileView) {
-        profileCoinsDisplay.textContent = userCoins;
-        userIdDisplay.textContent = localStorage.getItem('uniqueUserId') || 'N/A';
+        adBannerContainer.style.display = 'none';
+        sortOptionsContainer.style.display = 'none';
     }
 
     // Close side menu if open
@@ -326,10 +383,12 @@ function showView(viewToShow) {
 }
 
 /**
- * Updates the active step in the multi-step form.
+ * Updates the active step in the multi-step form (on index.html).
  * @param {number} stepIndex The index of the step to make active.
  */
 function updateFormStep(stepIndex) {
+    if (!formSteps || formSteps.length === 0) return;
+
     formSteps.forEach((step, index) => {
         if (index === stepIndex) {
             step.classList.add('active-step');
@@ -354,10 +413,12 @@ function getOrCreateUserId() {
 }
 
 /**
- * Toggles the side navigation menu visibility.
+ * Toggles the side navigation menu visibility (on index.html).
  * @param {boolean} show If true, opens the menu; otherwise, closes it.
  */
 function toggleSideMenu(show) {
+    if (!sideMenu || !sideMenuOverlay) return;
+
     if (show) {
         sideMenu.classList.add('active');
         sideMenuOverlay.classList.add('active');
@@ -372,224 +433,246 @@ function closeSideMenu() {
 }
 
 
-// --- Event Listeners ---
+// --- Page-Specific Initializers and Listeners ---
 
-// Navigation from Header Icons
-addGroupIcon.addEventListener('click', () => {
-    // Check for coins before opening the form
-    if (userCoins < GROUP_POST_COST) {
-        showSnackbar(`You need ${GROUP_POST_COST} coins to post a group. You have ${userCoins}.`);
-        return; // Prevent opening the form
-    }
-    showView(addGroupView);
-    updateFormStep(0); // Reset form to first step
-});
+// For index.html
+function initializeIndexPageListeners() {
+    // Navigation from Header Icons
+    addGroupIcon.addEventListener('click', () => {
+        // Check for coins before opening the form
+        if (userCoins < GROUP_POST_COST) {
+            showSnackbar(`You need ${GROUP_POST_COST} coins to post a group. You have ${userCoins}.`);
+            return; // Prevent opening the form
+        }
+        showMainView(addGroupView);
+        updateFormStep(0); // Reset form to first step
+    });
 
-profileIcon.addEventListener('click', () => {
-    showView(profileView);
-    userIdDisplay.textContent = getOrCreateUserId(); // Ensure user ID is displayed
-});
+    // Profile icon now directly links to profile.html via HTML 'a' tag
 
-menuIcon.addEventListener('click', () => {
-    toggleSideMenu(true);
-});
+    menuIcon.addEventListener('click', () => {
+        toggleSideMenu(true);
+    });
 
-closeMenuIcon.addEventListener('click', () => {
-    closeSideMenu();
-});
+    closeMenuIcon.addEventListener('click', () => {
+        closeSideMenu();
+    });
 
-// Navigation from Side Menu Items
-menuItems.forEach(item => {
-    item.addEventListener('click', (e) => {
-        // Only allow clicks on non-disabled items
-        if (!item.classList.contains('disabled')) {
-            e.preventDefault();
-            const targetViewId = item.dataset.view;
-            if (targetViewId) {
-                showView(document.getElementById(targetViewId));
+    // Navigation from Side Menu Items
+    menuItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            // Only allow clicks on non-disabled items
+            if (!item.classList.contains('disabled')) {
+                // If it's a link to a different HTML page, let the default behavior happen
+                if (item.getAttribute('href') && item.getAttribute('href').endsWith('.html')) {
+                    // Do nothing, let the browser navigate
+                } else {
+                    e.preventDefault(); // Prevent default for internal view changes
+                    const targetViewId = item.dataset.view;
+                    if (targetViewId && document.getElementById(targetViewId)) {
+                        showMainView(document.getElementById(targetViewId));
+                    }
+                }
             }
+        });
+    });
+
+
+    // Back button for Add Group view
+    document.querySelector('#addGroupView .back-button').addEventListener('click', () => showMainView(homeView));
+
+
+    // Multi-step form navigation
+    nextStepButton.addEventListener('click', () => {
+        // Validate first step before moving to next
+        const groupNameInput = document.getElementById('groupName');
+        const telegramLinkInput = document.getElementById('telegramLink');
+
+        if (!groupNameInput.value.trim() || !telegramLinkInput.value.trim()) {
+            showSnackbar('Please fill in both group name and Telegram link.');
+            return;
+        }
+        if (!telegramLinkInput.value.trim().startsWith('https://t.me/')) {
+            showSnackbar('Telegram Link must start with https://t.me/');
+            return;
+        }
+
+        updateFormStep(currentStep + 1);
+    });
+
+    prevStepButton.addEventListener('click', () => {
+        updateFormStep(currentStep - 1);
+    });
+
+
+    // Handle Add Group Form Submission
+    addGroupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (userCoins < GROUP_POST_COST) {
+            showSnackbar(`You need ${GROUP_POST_COST} coins to post a group. You have ${userCoins}.`);
+            return;
+        }
+
+        const groupName = document.getElementById('groupName').value.trim();
+        const telegramLink = document.getElementById('telegramLink').value.trim();
+        const groupCategory = document.getElementById('groupCategory').value;
+        const groupDescription = "Join our vibrant community!"; // Default description for now
+
+        if (!groupCategory) {
+            showSnackbar('Please select a category.');
+            return;
+        }
+
+        // Deduct coins before attempting to push to Firebase
+        if (!deductCoins(GROUP_POST_COST)) {
+            showSnackbar('Insufficient coins to post this group.');
+            return;
+        }
+
+        const newGroup = {
+            name: groupName,
+            link: telegramLink,
+            category: groupCategory,
+            description: groupDescription,
+            timestamp: Date.now(),
+            owner: getOrCreateUserId(), // Use the persistent user ID
+            views: 0
+        };
+
+        try {
+            await push(groupsRef, newGroup);
+            showSnackbar('Group submitted successfully!');
+            addGroupForm.reset(); // Clear form
+            updateFormStep(0); // Reset to first step
+            showMainView(homeView); // Navigate back to home
+        } catch (error) {
+            console.error("Error adding group: ", error);
+            showSnackbar('Error submitting group. Please try again.');
+            addCoins(GROUP_POST_COST); // Simple refund on failure
         }
     });
-});
 
+    // Category Tab Filtering Logic
+    categoryTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Remove 'active' class from all tabs
+            categoryTabs.forEach(t => t.classList.remove('active'));
+            // Add 'active' class to the clicked tab
+            this.classList.add('active');
+            currentFilter = this.dataset.category; // Update the filter
 
-// Back buttons for full-page views
-document.querySelectorAll('.view-header .back-button').forEach(button => {
-    button.addEventListener('click', () => showView(homeView));
-});
-
-
-// Multi-step form navigation
-nextStepButton.addEventListener('click', () => {
-    // Validate first step before moving to next
-    const groupNameInput = document.getElementById('groupName');
-    const telegramLinkInput = document.getElementById('telegramLink');
-
-    if (!groupNameInput.value.trim() || !telegramLinkInput.value.trim()) {
-        showSnackbar('Please fill in both group name and Telegram link.');
-        return;
-    }
-    if (!telegramLinkInput.value.trim().startsWith('https://t.me/')) {
-        showSnackbar('Telegram Link must start with https://t.me/');
-        return;
-    }
-
-    updateFormStep(currentStep + 1);
-});
-
-prevStepButton.addEventListener('click', () => {
-    updateFormStep(currentStep - 1);
-});
-
-
-// Handle Add Group Form Submission
-addGroupForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    if (userCoins < GROUP_POST_COST) {
-        showSnackbar(`You need ${GROUP_POST_COST} coins to post a group. You have ${userCoins}.`);
-        return;
-    }
-
-    const groupName = document.getElementById('groupName').value.trim();
-    const telegramLink = document.getElementById('telegramLink').value.trim();
-    const groupCategory = document.getElementById('groupCategory').value;
-    const groupDescription = "Join our vibrant community!"; // Default description for now
-
-    if (!groupCategory) {
-        showSnackbar('Please select a category.');
-        return;
-    }
-
-    // Deduct coins before attempting to push to Firebase
-    if (!deductCoins(GROUP_POST_COST)) {
-        showSnackbar('Insufficient coins to post this group.'); // Should not happen due to earlier check, but good for robustness
-        return;
-    }
-
-    const newGroup = {
-        name: groupName,
-        link: telegramLink,
-        category: groupCategory,
-        description: groupDescription,
-        timestamp: Date.now(),
-        owner: getOrCreateUserId(), // Use the persistent user ID
-        views: 0
-    };
-
-    try {
-        await push(groupsRef, newGroup);
-        showSnackbar('Group submitted successfully!');
-        addGroupForm.reset(); // Clear form
-        updateFormStep(0); // Reset to first step
-        showView(homeView); // Navigate back to home
-    } catch (error) {
-        console.error("Error adding group: ", error);
-        showSnackbar('Error submitting group. Please try again.');
-        // If submission fails, consider refunding coins (more complex error handling needed for robust solution)
-        addCoins(GROUP_POST_COST); // Simple refund on failure
-    }
-});
-
-// Watch Ad Button click
-watchAdButton.addEventListener('click', () => {
-    fireRedirectAd();
-});
-
-// Category Tab Filtering Logic
-categoryTabs.forEach(tab => {
-    tab.addEventListener('click', function() {
-        // Remove 'active' class from all tabs
-        categoryTabs.forEach(t => t.classList.remove('active'));
-        // Add 'active' class to the clicked tab
-        this.classList.add('active');
-        currentFilter = this.dataset.category; // Update the filter
-
-        // The onValue listener will automatically re-render with the new filter
-        // because `currentFilter` is a global variable it uses.
+            // The onValue listener will automatically re-render with the new filter
+            // because `currentFilter` is a global variable it uses.
+        });
     });
-});
 
-// --- Firebase Realtime Database Listener ---
-// This listener runs once initially when the page loads,
-// and then again every time the data at the 'groups' path changes in Firebase.
-onValue(groupsRef, (snapshot) => {
-    loadingSpinner.style.display = 'block'; // Show spinner while fetching/processing data
-    const data = snapshot.val(); // Get the data as a JavaScript object
+    // Sort Order Change Listener
+    sortOrderSelect.addEventListener('change', (e) => {
+        currentSortOrder = e.target.value;
+        // Re-trigger render to apply new sort order
+        onValue(groupsRef, (snapshot) => {
+            const data = snapshot.val();
+            renderGroups(data || {});
+        }, (error) => {
+            console.error("Firebase Read Error (sort change): ", error);
+        });
+    });
 
-    if (data) {
-        renderGroups(data); // Render all groups if data exists
-    } else {
-        // If no data, still render the pinned group
-        if (currentFilter === 'All' || pinnedGroupData.category === currentFilter) {
-            groupListContainer.innerHTML = ''; // Clear if only spinner was there
-            const pinnedCard = createGroupCard(pinnedGroupData, 'pinned-hacker99');
-            groupListContainer.appendChild(pinnedCard);
+
+    // --- Firebase Realtime Database Listener (for index.html) ---
+    onValue(groupsRef, (snapshot) => {
+        loadingSpinner.style.display = 'block'; // Show spinner while fetching/processing data
+        const data = snapshot.val(); // Get the data as a JavaScript object
+
+        if (data) {
+            renderGroups(data); // Render all groups if data exists
         } else {
-             groupListContainer.innerHTML = ''; // Clear
+            // If no data, still render the pinned group and empty message
+            groupListContainer.innerHTML = ''; // Clear existing
+            if (currentFilter === 'All' || pinnedGroupData.category === currentFilter) {
+                const pinnedCard = createGroupCard(pinnedGroupData, 'pinned-hacker99');
+                groupListContainer.appendChild(pinnedCard);
+            }
+            groupListContainer.innerHTML += `
+                <p style="text-align: center; color: #777; margin-top: 50px; grid-column: 1 / -1;">
+                    No user-submitted groups added yet. Be the first!
+                </p>
+            `;
+            loadingSpinner.style.display = 'none';
         }
-
-        groupListContainer.innerHTML += `
-            <p style="text-align: center; color: #777; margin-top: 50px; grid-column: 1 / -1;">
-                No user-submitted groups added yet. Be the first!
+    }, (error) => {
+        // Error handling for Firebase read operation
+        console.error("Firebase Read Error: ", error);
+        groupListContainer.innerHTML = `
+            <p style="text-align: center; color: red; margin-top: 50px; grid-column: 1 / -1;">
+                Error loading groups. Please check your Firebase configuration or network connection.
             </p>
         `;
         loadingSpinner.style.display = 'none';
-    }
-}, (error) => {
-    // Error handling for Firebase read operation
-    console.error("Firebase Read Error: ", error);
-    groupListContainer.innerHTML = `
-        <p style="text-align: center; color: red; margin-top: 50px; grid-column: 1 / -1;">
-            Error loading groups. Please check your Firebase configuration or network connection.
-        </p>
-    `;
-    loadingSpinner.style.display = 'none';
-});
-
-// Initial header shadow on scroll
-document.addEventListener('scroll', () => {
-    const header = document.querySelector('.header');
-    if (window.scrollY > 0) {
-        header.classList.add('scrolled');
-    } else {
-        header.classList.remove('scrolled');
-    }
-});
-
-// --- Initialize on Page Load ---
-document.addEventListener('DOMContentLoaded', () => {
-    initializeUserCoins(); // Load or set initial coins
-    getOrCreateUserId(); // Ensure a user ID is set/retrieved
-    showView(homeView); // Initially show the home view
-    updateFormStep(0); // Ensure add group form starts on first step
-
-    // Popstate listener for back button navigation (e.g., after ad redirect)
-    // This will only work if the ad actually changes the browser's history state
-    // and then the user presses the back button to return to your site.
-    window.addEventListener('popstate', (event) => {
-        // Check if an ad redirect was initiated and the user has returned
-        if (sessionStorage.getItem('adRedirectInitiated') === 'true') {
-            addCoins(AD_REWARD_COINS);
-            sessionStorage.removeItem('adRedirectInitiated'); // Clear flag after rewarding
-            // You might want to add a cooldown or a more sophisticated check here
-            // to prevent accidental multiple awards.
-        }
     });
 
-    // An alternative way to detect return from ad (if ad opened in new tab/window):
-    // This event fires when the tab visibility changes from hidden to visible.
-    document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === 'visible') {
-            // Check if an ad redirect was initiated and the user has returned
-            if (sessionStorage.getItem('adRedirectInitiated') === 'true') {
-                addCoins(AD_REWARD_COINS);
-                sessionStorage.removeItem('adRedirectInitiated'); // Clear flag after rewarding
-                // Important: This `visibilitychange` can trigger for other reasons
-                // (e.g., switching tabs). For a production app, you might need
-                // a more robust ad network callback or a time-based cooldown
-                // to prevent over-rewarding.
-            }
+    // Initial header shadow on scroll
+    document.addEventListener('scroll', () => {
+        const header = document.querySelector('.header');
+        if (window.scrollY > 0) {
+            header.classList.add('scrolled');
+        } else {
+            header.classList.remove('scrolled');
         }
     });
-});
+}
+
+
+// For profile.html
+function initializeProfilePageListeners() {
+    // Watch Ad Button click
+    watchAdButton.addEventListener('click', () => {
+        fireRedirectAd();
+    });
+
+    // Profile Picture Upload
+    dpUploadInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                profileDpPreview.src = e.target.result;
+                localStorage.setItem('userProfilePicture', e.target.result); // Store as Data URL
+                // In a real app, you would upload this to Firebase Storage here:
+                /*
+                const storage = getStorage(app);
+                const storageRef = sRef(storage, `profile_pictures/${getOrCreateUserId()}/${file.name}`);
+                uploadBytes(storageRef, file).then((snapshot) => {
+                    getDownloadURL(snapshot.ref).then((downloadURL) => {
+                        console.log('File available at', downloadURL);
+                        localStorage.setItem('userProfilePicture', downloadURL); // Store URL
+                        profileDpPreview.src = downloadURL;
+                        showSnackbar('Profile picture updated!');
+                    });
+                }).catch(error => {
+                    console.error("Error uploading profile picture:", error);
+                    showSnackbar('Failed to upload profile picture.');
+                });
+                */
+            };
+            reader.readAsDataURL(file); // Read as Data URL for immediate preview
+        }
+    });
+}
+
+// Update UI elements specific to the profile page
+function updateProfilePageUI() {
+    if (userIdDisplay) {
+        userIdDisplay.textContent = getOrCreateUserId();
+    }
+    if (profileCoinsDisplay) {
+        profileCoinsDisplay.textContent = userCoins;
+    }
+    if (profileDpPreview) {
+        const storedDp = localStorage.getItem('userProfilePicture');
+        if (storedDp) {
+            profileDpPreview.src = storedDp;
+        }
+    }
+}
