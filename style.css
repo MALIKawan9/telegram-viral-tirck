@@ -73,6 +73,13 @@ body {
     color: gold; /* Coin icon color */
 }
 
+.profile-link {
+    color: inherit; /* Inherit color from parent (.header-right) */
+    text-decoration: none;
+    display: flex; /* To align icon correctly */
+    align-items: center;
+}
+
 /* Category Tab Bar */
 .category-tabs {
     display: flex;
@@ -136,12 +143,48 @@ body {
     border: none;
 }
 
+/* Sort Options */
+.sort-options {
+    padding: 10px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: white;
+    border-bottom: 1px solid #eee;
+    box-shadow: 0 1px 3px var(--shadow-color);
+    margin-bottom: 15px;
+    border-radius: 8px;
+}
+
+.sort-options label {
+    font-weight: 500;
+    color: #555;
+}
+
+.sort-options select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: white;
+    font-size: 0.9em;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+.sort-options select:focus {
+    border-color: var(--primary-purple);
+}
+
+
 /* Group List Container */
 .group-list-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
-    padding: 20px;
+    padding: 0 20px 20px 20px; /* Adjust top padding if needed */
     max-width: 1200px; /* Max width for larger screens */
     margin: 0 auto; /* Center the grid */
 }
@@ -310,6 +353,7 @@ body {
 }
 
 /* --- Full Page Views (Add Group, Profile) --- */
+/* The main content area of profile.html will use these styles too */
 .full-page-view {
     position: fixed;
     top: 0;
@@ -337,12 +381,15 @@ body {
     color: white;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     flex-shrink: 0; /* Prevent header from shrinking */
+    width: 100%; /* Ensure header spans full width on profile.html too */
 }
 
 .view-header .back-button {
     font-size: 1.5em;
     margin-right: 15px;
     cursor: pointer;
+    color: white; /* Ensure back button is visible */
+    text-decoration: none; /* Remove underline from a tag */
 }
 
 .view-header h2 {
@@ -350,7 +397,7 @@ body {
     font-weight: 600;
 }
 
-.full-page-form, .profile-content {
+.full-page-form {
     padding: 25px;
     max-width: 600px;
     margin: 25px auto;
@@ -444,30 +491,111 @@ body {
     color: var(--primary-purple);
 }
 
-/* Profile Content Styling */
-.profile-content h3 {
-    margin-top: 30px;
+/* Profile Content Styling (for profile.html) */
+.profile-content-container {
+    padding: 20px;
+    max-width: 800px;
+    margin: 20px auto;
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping of cards */
+    gap: 20px;
+    justify-content: center; /* Center cards horizontally */
+}
+
+.profile-card, .profile-details-card {
+    background-color: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 15px var(--shadow-color);
+    flex: 1; /* Allow cards to grow */
+    min-width: 280px; /* Minimum width for cards */
+}
+
+.profile-card {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.profile-avatar-container {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background-color: var(--light-lavender);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    margin-bottom: 10px;
+    border: 3px solid var(--primary-purple);
+    box-shadow: 0 0 0 5px rgba(138, 43, 226, 0.2);
+}
+
+.profile-dp {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.upload-dp-button {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    background-color: var(--primary-purple);
+    color: white;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.upload-dp-button:hover {
+    background-color: #5d1a9b;
+}
+
+
+.profile-card p {
+    font-size: 1.1em;
+    color: #444;
+}
+
+.profile-card strong {
+    color: var(--primary-purple);
+}
+
+.profile-details-card h3 {
+    margin-top: 0; /* Remove top margin as it's a new card */
     margin-bottom: 15px;
     color: var(--primary-purple);
     font-size: 1.3em;
 }
 
-.profile-content h4 {
+.profile-details-card h4 {
     margin-top: 20px;
     margin-bottom: 10px;
     color: #555;
     font-size: 1.1em;
 }
 
-.profile-content p, .profile-content ul {
+.profile-details-card p, .profile-details-card ul {
     margin-bottom: 10px;
     color: #444;
 }
 
-.profile-content ul {
+.profile-details-card ul {
     margin-left: 20px;
     list-style-type: disc;
 }
+
 
 /* Loading Spinner */
 .loading-spinner {
@@ -650,6 +778,15 @@ body {
         max-width: 320px; /* Standard mobile banner width */
     }
 
+    .sort-options {
+        padding: 8px 15px;
+        margin: 10px auto;
+        font-size: 0.9em;
+    }
+    .sort-options select {
+        padding: 6px 10px;
+    }
+
     .group-list-container {
         grid-template-columns: 1fr; /* Single column on small screens */
         padding: 15px;
@@ -679,9 +816,26 @@ body {
         flex-direction: column;
     }
 
-    .full-page-form, .profile-content {
+    .full-page-form, .profile-content-container, .profile-card, .profile-details-card {
         padding: 15px;
-        margin: 15px;
+        margin: 15px auto;
         border-radius: 10px;
+    }
+
+    .profile-content-container {
+        flex-direction: column; /* Stack cards vertically on mobile */
+    }
+
+    .profile-avatar-container {
+        width: 120px;
+        height: 120px;
+    }
+
+    .upload-dp-button {
+        width: 35px;
+        height: 35px;
+        font-size: 1em;
+        bottom: 3px;
+        right: 3px;
     }
 }
